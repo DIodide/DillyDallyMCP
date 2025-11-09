@@ -32,43 +32,69 @@ export async function handleGetAttentionMetrics(
     const client = getConvexClient();
     const api = await getConvexApi();
 
-    const metrics = await client.query(api.functions.getAttentionMetrics, {
-      sessionId: sessionId as any,
+    let targetSessionId = sessionId;
+
+    // If no sessionId provided, get the most recent session
+    if (!targetSessionId) {
+      const sessions = await client.query(api.functions.getAllSessions, {});
+      if (!sessions || sessions.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No attention metrics available. No sessions found.",
+            },
+          ],
+          isError: false,
+        };
+      }
+      targetSessionId = sessions[0]._id;
+    }
+
+    // Get camera snapshots for the session
+    const cameraSnapshots = await client.query(api.functions.getSessionCameraSnapshots, {
+      sessionId: targetSessionId as any,
     });
 
-    if (!metrics) {
+    if (!cameraSnapshots || cameraSnapshots.length === 0) {
       return {
         content: [
           {
             type: "text",
-            text: "No attention metrics available. No sessions found.",
+            text: `Session ${targetSessionId} has no camera snapshots.`,
           },
         ],
         isError: false,
       };
     }
 
-    if (metrics.totalSnapshots === 0) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Session ${metrics.sessionId} has no camera snapshots.`,
-          },
-        ],
-        isError: false,
-      };
-    }
+    // Calculate metrics
+    const lookingAtScreenCount = cameraSnapshots.filter(
+      (s: any) => s.attentionState === "looking_at_screen"
+    ).length;
+    const awayCount = cameraSnapshots.filter(
+      (s: any) => s.attentionState.startsWith("away_")
+    ).length;
+    const noFaceCount = cameraSnapshots.filter(
+      (s: any) => s.attentionState === "no_face"
+    ).length;
+    const focusPercentage = Math.round((lookingAtScreenCount / cameraSnapshots.length) * 100 * 100) / 100;
+
+    // Count attention states
+    const attentionStates: Record<string, number> = {};
+    cameraSnapshots.forEach((s: any) => {
+      attentionStates[s.attentionState] = (attentionStates[s.attentionState] || 0) + 1;
+    });
 
     const result = {
-      sessionId: metrics.sessionId,
-      totalSnapshots: metrics.totalSnapshots,
-      focusPercentage: `${metrics.focusPercentage}%`,
-      lookingAtScreenCount: metrics.lookingAtScreenCount,
-      awayCount: metrics.awayCount,
-      noFaceCount: metrics.noFaceCount,
-      attentionStates: metrics.attentionStates,
-      summary: `Out of ${metrics.totalSnapshots} camera snapshots, ${metrics.focusPercentage}% showed the user looking at the screen.`,
+      sessionId: targetSessionId,
+      totalSnapshots: cameraSnapshots.length,
+      focusPercentage: `${focusPercentage}%`,
+      lookingAtScreenCount: lookingAtScreenCount,
+      awayCount: awayCount,
+      noFaceCount: noFaceCount,
+      attentionStates: attentionStates,
+      summary: `Out of ${cameraSnapshots.length} camera snapshots, ${focusPercentage}% showed the user looking at the screen.`,
     };
 
     return {

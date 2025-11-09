@@ -57,43 +57,58 @@ export async function handleGetSessionDetails(
     const client = getConvexClient();
     const api = await getConvexApi();
 
-    const sessionSummary = await client.query(api.functions.getSessionSummary, {
-      sessionId: sessionId as any,
-    });
+    // Get snapshots and metadata for this session
+    const [snapshots, metadata, activities] = await Promise.all([
+      client.query(api.functions.getSessionSnapshots, {
+        sessionId: sessionId as any,
+      }),
+      client.query(api.functions.getSessionMetadata, {
+        sessionId: sessionId as any,
+      }),
+      client.query(api.functions.getSessionActivities, {
+        sessionId: sessionId as any,
+      }),
+    ]);
 
-    if (!sessionSummary) {
+    if (!snapshots || snapshots.length === 0) {
       return {
         content: [
           {
             type: "text",
-            text: `Session with ID ${sessionId} not found.`,
+            text: `Session with ID ${sessionId} not found or has no snapshots.`,
           },
         ],
         isError: false,
       };
     }
 
-    const startDate = new Date(sessionSummary.startTime);
-    const endDate = new Date(sessionSummary.endTime);
-    const durationMinutes = Math.round(sessionSummary.durationMs / 60000);
+    const sortedSnapshots = snapshots.sort((a: any, b: any) => a.timestamp - b.timestamp);
+    const startDate = new Date(sortedSnapshots[0].timestamp);
+    const endDate = new Date(sortedSnapshots[sortedSnapshots.length - 1].timestamp);
+    const durationMs = endDate.getTime() - startDate.getTime();
+    const durationMinutes = Math.round(durationMs / 60000);
     const durationHours = Math.floor(durationMinutes / 60);
     const remainingMinutes = durationMinutes % 60;
 
+    // Get unique tabs
+    const tabs = Array.from(new Set(snapshots.map((s: any) => s.currentTab).filter(Boolean)));
+
     const result = {
-      sessionId: sessionSummary.session._id,
+      sessionId: sessionId,
       startTime: startDate.toISOString(),
       readableStartTime: startDate.toLocaleString(),
       endTime: endDate.toISOString(),
       readableEndTime: endDate.toLocaleString(),
       duration: `${durationHours}h ${remainingMinutes}m`,
-      durationMs: sessionSummary.durationMs,
-      snapshotCount: sessionSummary.snapshotCount,
-      productivityPercentage: `${sessionSummary.productivityPercentage}%`,
-      productiveSnapshots: sessionSummary.productiveCount,
-      nonProductiveSnapshots: sessionSummary.nonProductiveCount,
-      activities: sessionSummary.activities,
-      tabs: sessionSummary.tabs,
-      snapshots: sessionSummary.snapshots.map((s: any) => ({
+      durationMs: durationMs,
+      snapshotCount: snapshots.length,
+      productivityPercentage: metadata?.productivityPercentage ? `${metadata.productivityPercentage}%` : 
+        (snapshots.length > 0 ? `${Math.round((snapshots.filter((s: any) => s.isProductive).length / snapshots.length) * 100)}%` : "0%"),
+      productiveSnapshots: snapshots.filter((s: any) => s.isProductive).length,
+      nonProductiveSnapshots: snapshots.filter((s: any) => !s.isProductive).length,
+      activities: activities || [],
+      tabs: tabs,
+      snapshots: sortedSnapshots.map((s: any) => ({
         id: s._id,
         timestamp: new Date(s.timestamp).toISOString(),
         readableTime: new Date(s.timestamp).toLocaleString(),

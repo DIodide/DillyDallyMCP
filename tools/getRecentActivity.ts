@@ -28,15 +28,14 @@ export async function handleGetRecentActivity(
   args: unknown
 ): Promise<CallToolResult> {
   try {
-    const { limit } = (args as { limit?: number }) || {};
+    const { limit = 10 } = (args as { limit?: number }) || {};
     const client = getConvexClient();
     const api = await getConvexApi();
 
-    const activities = await client.query(api.functions.getRecentActivity, {
-      limit,
-    });
-
-    if (!activities || activities.length === 0) {
+    // Get all sessions first, then get snapshots from the most recent session
+    const sessions = await client.query(api.functions.getAllSessions, {});
+    
+    if (!sessions || sessions.length === 0) {
       return {
         content: [
           {
@@ -48,7 +47,30 @@ export async function handleGetRecentActivity(
       };
     }
 
-    const formattedActivities = activities.map((activity: any) => {
+    // Get snapshots from the most recent session
+    const mostRecentSession = sessions[0];
+    const snapshots = await client.query(api.functions.getSessionSnapshots, {
+      sessionId: mostRecentSession._id,
+    });
+
+    if (!snapshots || snapshots.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No recent activity found.",
+          },
+        ],
+        isError: false,
+      };
+    }
+
+    // Sort by timestamp descending and limit
+    const sortedSnapshots = snapshots
+      .sort((a: any, b: any) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+
+    const formattedActivities = sortedSnapshots.map((activity: any) => {
       const date = new Date(activity.timestamp);
       return {
         id: activity._id,
@@ -66,7 +88,7 @@ export async function handleGetRecentActivity(
       content: [
         {
           type: "text",
-          text: `Found ${activities.length} recent activities:\n\n${JSON.stringify(
+          text: `Found ${formattedActivities.length} recent activities:\n\n${JSON.stringify(
             formattedActivities,
             null,
             2

@@ -23,6 +23,34 @@ import {
   getAttentionMetricsToolDefinition,
   handleGetAttentionMetrics,
 } from "./getAttentionMetrics.js";
+import {
+  getAllSessionsToolDefinition,
+  handleGetAllSessions,
+} from "./getAllSessions.js";
+import {
+  getWeeklyInsightsToolDefinition,
+  handleGetWeeklyInsights,
+} from "./getWeeklyInsights.js";
+import {
+  getSessionSnapshotsToolDefinition,
+  handleGetSessionSnapshots,
+} from "./getSessionSnapshots.js";
+import {
+  getSessionCameraSnapshotsToolDefinition,
+  handleGetSessionCameraSnapshots,
+} from "./getSessionCameraSnapshots.js";
+import {
+  getSessionActivitiesToolDefinition,
+  handleGetSessionActivities,
+} from "./getSessionActivities.js";
+import {
+  getSessionMetadataToolDefinition,
+  handleGetSessionMetadata,
+} from "./getSessionMetadata.js";
+import {
+  getCurrentUserToolDefinition,
+  handleGetCurrentUser,
+} from "./getCurrentUser.js";
 
 /**
  * Tool registry entry interface
@@ -76,6 +104,55 @@ export const toolRegistry: Map<string, ToolRegistryEntry> = new Map([
     {
       definition: getAttentionMetricsToolDefinition,
       handler: handleGetAttentionMetrics,
+    },
+  ],
+  [
+    "get_all_sessions",
+    {
+      definition: getAllSessionsToolDefinition,
+      handler: handleGetAllSessions,
+    },
+  ],
+  [
+    "get_weekly_insights",
+    {
+      definition: getWeeklyInsightsToolDefinition,
+      handler: handleGetWeeklyInsights,
+    },
+  ],
+  [
+    "get_session_snapshots",
+    {
+      definition: getSessionSnapshotsToolDefinition,
+      handler: handleGetSessionSnapshots,
+    },
+  ],
+  [
+    "get_session_camera_snapshots",
+    {
+      definition: getSessionCameraSnapshotsToolDefinition,
+      handler: handleGetSessionCameraSnapshots,
+    },
+  ],
+  [
+    "get_session_activities",
+    {
+      definition: getSessionActivitiesToolDefinition,
+      handler: handleGetSessionActivities,
+    },
+  ],
+  [
+    "get_session_metadata",
+    {
+      definition: getSessionMetadataToolDefinition,
+      handler: handleGetSessionMetadata,
+    },
+  ],
+  [
+    "get_current_user",
+    {
+      definition: getCurrentUserToolDefinition,
+      handler: handleGetCurrentUser,
     },
   ],
 ]);

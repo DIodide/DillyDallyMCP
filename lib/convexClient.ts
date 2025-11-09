@@ -2,6 +2,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { fileURLToPath } from "url";
 import { dirname, join, resolve } from "path";
 import * as dotenv from "dotenv";
+import { existsSync } from "fs";
 
 // Load environment variables from dedalus-mcp folder only
 const __filename = fileURLToPath(import.meta.url);
@@ -25,9 +26,25 @@ async function loadApi() {
     // Use dynamic import with file path to avoid TypeScript checking convex folder
     try {
       const apiModule = await import(apiPath);
+      // The API is exported as a named export 'api'
       api = apiModule.api;
+
+      // Verify API structure
+      if (!api || typeof api !== "object") {
+        throw new Error(`API is not a valid object. Got: ${typeof api}`);
+      }
+
+      // Log available modules for debugging
+      if (process.env.DEBUG) {
+        console.log("API modules:", Object.keys(api));
+        if (api.functions) {
+          console.log("API functions:", Object.keys(api.functions));
+        }
+      }
     } catch (error) {
       console.error(`Failed to load Convex API from ${apiPath}:`, error);
+      console.error(`Resolved path: ${absolutePath}`);
+      console.error(`Path exists: ${existsSync(absolutePath)}`);
       throw error;
     }
   }

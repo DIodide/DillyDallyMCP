@@ -28,15 +28,14 @@ export async function handleGetProductivityStats(
   args: unknown
 ): Promise<CallToolResult> {
   try {
-    const { timeRangeHours } = (args as { timeRangeHours?: number }) || {};
+    const { timeRangeHours = 24 } = (args as { timeRangeHours?: number }) || {};
     const client = getConvexClient();
     const api = await getConvexApi();
 
-    const stats = await client.query(api.functions.getProductivityStats, {
-      timeRangeHours,
-    });
-
-    if (!stats) {
+    // Get all sessions
+    const sessions = await client.query(api.functions.getAllSessions, {});
+    
+    if (!sessions || sessions.length === 0) {
       return {
         content: [
           {
@@ -48,13 +47,44 @@ export async function handleGetProductivityStats(
       };
     }
 
+    // Calculate cutoff time
+    const cutoffTime = Date.now() - (timeRangeHours * 60 * 60 * 1000);
+    
+    // Get snapshots from all sessions within the time range
+    let allSnapshots: any[] = [];
+    for (const session of sessions) {
+      const snapshots = await client.query(api.functions.getSessionSnapshots, {
+        sessionId: session._id,
+      });
+      if (snapshots) {
+        const filteredSnapshots = snapshots.filter((s: any) => s.timestamp >= cutoffTime);
+        allSnapshots = allSnapshots.concat(filteredSnapshots);
+      }
+    }
+
+    if (allSnapshots.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No productivity statistics available for the specified time range.",
+          },
+        ],
+        isError: false,
+      };
+    }
+
+    const productiveSnapshots = allSnapshots.filter((s: any) => s.isProductive).length;
+    const nonProductiveSnapshots = allSnapshots.length - productiveSnapshots;
+    const productivityPercentage = Math.round((productiveSnapshots / allSnapshots.length) * 100 * 100) / 100;
+
     const result = {
-      timeRangeHours: stats.timeRangeHours,
-      productivityPercentage: `${stats.productivityPercentage}%`,
-      totalSnapshots: stats.totalSnapshots,
-      productiveSnapshots: stats.productiveSnapshots,
-      nonProductiveSnapshots: stats.nonProductiveSnapshots,
-      summary: `Over the last ${stats.timeRangeHours} hours, ${stats.productivityPercentage}% of activities were productive (${stats.productiveSnapshots} out of ${stats.totalSnapshots} snapshots).`,
+      timeRangeHours: timeRangeHours,
+      productivityPercentage: `${productivityPercentage}%`,
+      totalSnapshots: allSnapshots.length,
+      productiveSnapshots: productiveSnapshots,
+      nonProductiveSnapshots: nonProductiveSnapshots,
+      summary: `Over the last ${timeRangeHours} hours, ${productivityPercentage}% of activities were productive (${productiveSnapshots} out of ${allSnapshots.length} snapshots).`,
     };
 
     return {

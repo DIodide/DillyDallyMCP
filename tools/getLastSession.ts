@@ -26,9 +26,10 @@ export async function handleGetLastSession(
     const client = getConvexClient();
     const api = await getConvexApi();
 
-    const sessionData = await client.query(api.functions.getLastSessionDetails, {});
+    // Get all sessions and use the first one (most recent)
+    const sessions = await client.query(api.functions.getAllSessions, {});
 
-    if (!sessionData) {
+    if (!sessions || sessions.length === 0) {
       return {
         content: [
           {
@@ -40,8 +41,35 @@ export async function handleGetLastSession(
       };
     }
 
-    const startDate = new Date(sessionData.startTime);
-    const formattedSnapshots = sessionData.snapshots.map((snapshot: any) => {
+    const mostRecentSession = sessions[0];
+    
+    // Get snapshots and metadata for this session
+    const [snapshots, metadata] = await Promise.all([
+      client.query(api.functions.getSessionSnapshots, {
+        sessionId: mostRecentSession._id,
+      }),
+      client.query(api.functions.getSessionMetadata, {
+        sessionId: mostRecentSession._id,
+      }),
+    ]);
+
+    if (!snapshots || snapshots.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No snapshots found for the most recent session.",
+          },
+        ],
+        isError: false,
+      };
+    }
+
+    const sortedSnapshots = snapshots.sort((a: any, b: any) => a.timestamp - b.timestamp);
+    const startDate = new Date(sortedSnapshots[0].timestamp);
+    const endDate = new Date(sortedSnapshots[sortedSnapshots.length - 1].timestamp);
+
+    const formattedSnapshots = sortedSnapshots.map((snapshot: any) => {
       const date = new Date(snapshot.timestamp);
       return {
         id: snapshot._id,
@@ -54,23 +82,20 @@ export async function handleGetLastSession(
       };
     });
 
-    const productiveCount = sessionData.snapshots.filter(
-      (s: any) => s.isProductive
-    ).length;
-    const productivityPercentage =
-      sessionData.snapshotCount > 0
-        ? Math.round((productiveCount / sessionData.snapshotCount) * 100 * 100) /
-          100
-        : 0;
+    const productiveCount = sortedSnapshots.filter((s: any) => s.isProductive).length;
+    const productivityPercentage = metadata?.productivityPercentage || 
+      (sortedSnapshots.length > 0 ? Math.round((productiveCount / sortedSnapshots.length) * 100 * 100) / 100 : 0);
 
     const result = {
-      sessionId: sessionData.session._id,
+      sessionId: mostRecentSession._id,
       startTime: startDate.toISOString(),
       readableStartTime: startDate.toLocaleString(),
-      snapshotCount: sessionData.snapshotCount,
+      endTime: endDate.toISOString(),
+      readableEndTime: endDate.toLocaleString(),
+      snapshotCount: sortedSnapshots.length,
       productivityPercentage: `${productivityPercentage}%`,
       productiveSnapshots: productiveCount,
-      nonProductiveSnapshots: sessionData.snapshotCount - productiveCount,
+      nonProductiveSnapshots: sortedSnapshots.length - productiveCount,
       snapshots: formattedSnapshots,
     };
 
