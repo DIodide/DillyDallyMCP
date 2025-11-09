@@ -3,6 +3,26 @@ import {
   addIntegersToolDefinition,
   handleAddIntegers,
 } from "./addIntegers.js";
+import {
+  getRecentActivityToolDefinition,
+  handleGetRecentActivity,
+} from "./getRecentActivity.js";
+import {
+  getLastSessionToolDefinition,
+  handleGetLastSession,
+} from "./getLastSession.js";
+import {
+  getProductivityStatsToolDefinition,
+  handleGetProductivityStats,
+} from "./getProductivityStats.js";
+import {
+  getSessionDetailsToolDefinition,
+  handleGetSessionDetails,
+} from "./getSessionDetails.js";
+import {
+  getAttentionMetricsToolDefinition,
+  handleGetAttentionMetrics,
+} from "./getAttentionMetrics.js";
 
 /**
  * Tool registry entry interface
@@ -21,6 +41,41 @@ export const toolRegistry: Map<string, ToolRegistryEntry> = new Map([
     {
       definition: addIntegersToolDefinition,
       handler: handleAddIntegers,
+    },
+  ],
+  [
+    "get_recent_activity",
+    {
+      definition: getRecentActivityToolDefinition,
+      handler: handleGetRecentActivity,
+    },
+  ],
+  [
+    "get_last_session",
+    {
+      definition: getLastSessionToolDefinition,
+      handler: handleGetLastSession,
+    },
+  ],
+  [
+    "get_productivity_stats",
+    {
+      definition: getProductivityStatsToolDefinition,
+      handler: handleGetProductivityStats,
+    },
+  ],
+  [
+    "get_session_details",
+    {
+      definition: getSessionDetailsToolDefinition,
+      handler: handleGetSessionDetails,
+    },
+  ],
+  [
+    "get_attention_metrics",
+    {
+      definition: getAttentionMetricsToolDefinition,
+      handler: handleGetAttentionMetrics,
     },
   ],
 ]);

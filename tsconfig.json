@@ -8,15 +8,18 @@
       "strict": true,
       "esModuleInterop": true,
       "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
+      "forceConsistentCasingInFileNames": true,
+      "noEmitOnError": false
     },
     "include": [
       "*.ts",
       "tools/**/*.ts",
-      "transport/**/*.ts"
+      "transport/**/*.ts",
+      "lib/**/*.ts"
     ],
     "exclude": [
       "node_modules",
-      "dist"
+      "dist",
+      "../convex"
     ]
   }
